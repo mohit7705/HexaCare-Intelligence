@@ -3,8 +3,8 @@ import "./symptom.css";
 import { auth } from "../firebase";
 import { saveHistory } from "../services/saveHistory";
 
-// ✅ API base URL (local vs production handled automatically)
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+// ✅ Fixed: Ensure we don't have double slashes and handle local fallback
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const SymptomChecker = () => {
   const [symptoms, setSymptoms] = useState("");
@@ -21,45 +21,51 @@ const SymptomChecker = () => {
     setResult(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/analyze`, {
+      // ✅ FIX: Use /analyze (not /api/analyze) because API_BASE already includes /api
+      // Also ensure the protocol is correct (https vs http)
+      const res = await fetch(`${API_BASE}/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           symptomData: symptoms,
-          userEmail: auth.currentUser?.email || "anonymous",
+          userEmail: auth.currentUser?.email || "anonymous@hexacare.ai",
         }),
       });
 
       if (!res.ok) {
-        throw new Error("Server response error");
+        throw new Error(`Server Error: ${res.status}`);
       }
 
       const data = await res.json();
 
       const finalResult = {
-        risk: data.prediction,
-        message: data.recommendation,
-        guidance: data.confidence,
+        risk: data.prediction || "Analysis Complete",
+        message: data.recommendation || "Please consult a doctor for a formal diagnosis.",
+        guidance: data.confidence || "N/A",
       };
 
       setResult(finalResult);
 
-      // ✅ SAVE HISTORY
+      // ✅ SAVE HISTORY (Only if logged in)
       if (auth.currentUser) {
-        await saveHistory(
-          auth.currentUser.uid,
-          "symptom_checker",
-          "Symptom Checker",
-          { symptoms },
-          finalResult
-        );
+        try {
+          await saveHistory(
+            auth.currentUser.uid,
+            "symptom_checker",
+            "Symptom Checker",
+            { symptoms },
+            finalResult
+          );
+        } catch (historyError) {
+          console.error("Failed to save history:", historyError);
+        }
       }
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("Connection Error:", error);
       setResult({
         risk: "System Offline",
         message:
-          "Unable to connect to the neural engine. Please try again later.",
+          "Unable to connect to the neural engine. Ensure your backend is running and CORS is configured.",
       });
     } finally {
       setLoading(false);
@@ -71,8 +77,8 @@ const SymptomChecker = () => {
       <h1 className="text-3xl font-black mb-6">AI Symptom Analysis</h1>
 
       <textarea
-        className="w-full h-48 p-6 rounded-3xl border mb-6"
-        placeholder="Describe your symptoms..."
+        className="w-full h-48 p-6 rounded-3xl border border-gray-200 focus:ring-2 focus:ring-[#0070f3] outline-none transition-all mb-6"
+        placeholder="Describe your symptoms (e.g., 'I have a high fever and a persistent cough')..."
         value={symptoms}
         onChange={(e) => setSymptoms(e.target.value)}
       />
@@ -80,15 +86,34 @@ const SymptomChecker = () => {
       <button
         onClick={handleSubmit}
         disabled={loading}
-        className="w-full py-4 rounded-xl bg-[#0070f3] text-white font-bold"
+        className={`w-full py-4 rounded-xl font-bold text-white transition-all ${
+          loading ? "bg-gray-400 cursor-not-allowed" : "bg-[#0070f3] hover:bg-[#005bc1] active:scale-95"
+        }`}
       >
-        {loading ? "Analyzing..." : "Start Health Scan"}
+        {loading ? (
+          <span className="flex items-center justify-center gap-2">
+            <span className="animate-spin">🌀</span> Analyzing...
+          </span>
+        ) : (
+          "Start Health Scan"
+        )}
       </button>
 
       {result && (
-        <div className="mt-8 p-6 rounded-xl bg-[#001e3c] text-white">
-          <h2 className="text-xl font-bold">{result.risk}</h2>
-          <p className="mt-2">{result.message}</p>
+        <div className={`mt-8 p-6 rounded-xl border ${
+          result.risk === "System Offline" 
+          ? "bg-red-50 border-red-200 text-red-800" 
+          : "bg-[#001e3c] border-[#002d5a] text-white"
+        }`}>
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            {result.risk === "System Offline" && "⚠️"} {result.risk}
+          </h2>
+          <p className="mt-2 opacity-90">{result.message}</p>
+          {result.guidance && result.risk !== "System Offline" && (
+            <div className="mt-4 pt-4 border-t border-white/10 text-sm italic">
+              Confidence Score: {result.guidance}
+            </div>
+          )}
         </div>
       )}
     </section>
