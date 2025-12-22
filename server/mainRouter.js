@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /* ==================================================
-   PYTHON RUNNER — RENDER SAFE
+    PYTHON RUNNER — RENDER SAFE
 ================================================== */
 const runPythonScript = (scriptName, inputData) => {
   return new Promise((resolve, reject) => {
@@ -62,9 +62,14 @@ const runPythonScript = (scriptName, inputData) => {
 };
 
 /* ==================================================
-   ROUTES
+    ROUTES
 ================================================== */
 export const setupRoutes = (app, Scan) => {
+
+  // 🚀 ADDED: BASIC HEALTH CHECK (To test if connection is live)
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "online", engine: "HexaCare Neural Engine" });
+  });
 
   /* 1️⃣ SYMPTOM CHECKER */
   app.post("/api/analyze", async (req, res) => {
@@ -198,4 +203,3 @@ export const setupRoutes = (app, Scan) => {
     }
   });
 };
-

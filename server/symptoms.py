@@ -8,12 +8,14 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 
 # Load ML model and encoder
 try:
+    # On Render, ensure these paths match your folder structure exactly
     MODEL_PATH = os.path.join(BASE, "..", "models", "symptom_model.pkl")
     ENCODER_PATH = os.path.join(BASE, "..", "models", "symptom_label_encoder.pkl")
 
     MODEL = joblib.load(MODEL_PATH)
     ENCODER = joblib.load(ENCODER_PATH)
 except Exception as e:
+    # We print as JSON so the Node.js backend can catch the error properly
     print(json.dumps({"error": f"Model loading failed: {str(e)}"}))
     sys.exit(1)
 
@@ -27,13 +29,25 @@ KEYWORDS = {
 }
 
 def analyze():
-    input_text = sys.stdin.read().lower().strip()
+    try:
+        # ✅ FIX: Safely parse JSON input from Node.js
+        raw_input = sys.stdin.read().strip()
+        if not raw_input:
+            raise ValueError("Empty input received")
+        
+        # If Node.js sends a stringified object/string, parse it
+        try:
+            input_data = json.loads(raw_input)
+            # If the input is just the symptom string
+            input_text = str(input_data).lower()
+        except:
+            input_text = raw_input.lower()
 
-    if not input_text:
+    except Exception as e:
         print(json.dumps({
-            "diagnosis": "No Data",
+            "diagnosis": "Error",
             "confidence": "N/A",
-            "recommendation": "Please provide symptom descriptions."
+            "recommendation": f"Input Error: {str(e)}"
         }))
         return
 
@@ -41,60 +55,41 @@ def analyze():
     # Rule-based medical triage layer
     # ---------------------------------
 
-    HIGH_RISK = [
-        "chest pain",
-        "shortness of breath",
-        "breathing difficulty",
-        "fainting",
-        "unconscious",
-        "severe pain"
-    ]
+    HIGH_RISK = ["chest pain", "shortness of breath", "breathing difficulty", "fainting", "unconscious", "severe pain"]
+    MILD = ["cold", "mild cold", "slight headache", "sneezing", "runny nose"]
 
-    MILD = [
-        "cold",
-        "mild cold",
-        "slight headache",
-        "sneezing",
-        "runny nose"
-    ]
-
-    # Robust negation detection (handles commas & lists)
     def is_negated(symptom):
         negations = ["no", "not", "do not have", "dont have", "without"]
-
         for neg in negations:
             neg_index = input_text.find(neg)
             symptom_index = input_text.find(symptom)
-
             if neg_index != -1 and symptom_index != -1:
-                # If symptom appears shortly after a negation phrase
                 if 0 < symptom_index - neg_index < 60:
                     return True
         return False
 
-    # 1️⃣ HIGH-risk override (only if NOT negated)
+    # 1️⃣ HIGH-risk override
     for s in HIGH_RISK:
         if s in input_text and not is_negated(s):
             print(json.dumps({
-                "diagnosis": "High",
-                "confidence": "High (Rule-Based Override)",
-                "recommendation": "Critical symptoms detected. Seek immediate medical attention."
+                "diagnosis": "High Risk",
+                "confidence": "High (Rule-Based)",
+                "recommendation": "Emergency symptoms detected. Please seek immediate medical help or call emergency services."
             }))
             return
 
-    # 2️⃣ LOW-risk override (only mild symptoms)
+    # 2️⃣ LOW-risk override
     if any(s in input_text for s in MILD):
         print(json.dumps({
-            "diagnosis": "Low",
+            "diagnosis": "Low Risk",
             "confidence": "Low (Initial Screening)",
-            "recommendation": "Mild symptoms detected. Home care, rest, and hydration advised."
+            "recommendation": "Symptoms appear mild. Rest and monitor your condition."
         }))
         return
 
     # ---------------------------------
-    # ML fallback (medium uncertainty)
+    # ML fallback
     # ---------------------------------
-
     features = [
         1 if any(k in input_text and not is_negated(k) for k in v) else 0
         for v in KEYWORDS.values()
@@ -107,10 +102,15 @@ def analyze():
         print(json.dumps({
             "diagnosis": str(label),
             "confidence": "Medium (Neural Analysis)",
-            "recommendation": "Monitor symptoms and consult a healthcare professional if they worsen."
+            "recommendation": "Based on analysis, monitor your symptoms and consult a professional if they persist."
         }))
     except Exception as e:
-        print(json.dumps({"error": f"Prediction failed: {str(e)}"}))
+        # Fallback if ML fails but keywords were found
+        print(json.dumps({
+            "diagnosis": "Inconclusive",
+            "confidence": "Low",
+            "recommendation": "We couldn't determine a specific condition. Please consult a doctor."
+        }))
 
 if __name__ == "__main__":
     analyze()
