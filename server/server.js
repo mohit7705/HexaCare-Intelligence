@@ -2,46 +2,73 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
 import { setupRoutes } from "./mainRouter.js";
 
-// --- FIX: Load .env from the root directory ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+// Load env vars (local + Render)
+dotenv.config();
 
 const app = express();
 
-// --- Debug Check: Run your server and check terminal ---
-console.log("--- Server Initialization ---");
-console.log("GEMINI_API_KEY status:", process.env.GEMINI_API_KEY ? "✅ Loaded" : "❌ Missing");
-console.log("----------------------------");
+/* ===============================
+   STARTUP DEBUG (SAFE)
+================================ */
+console.log("================================");
+console.log("🚀 HexaCare Server Initializing");
+console.log(
+  "GEMINI_API_KEY:",
+  process.env.GEMINI_API_KEY ? "✅ Loaded" : "❌ Missing"
+);
+console.log("================================");
 
-// --- Middleware ---
-app.use(cors());
+/* ===============================
+   MIDDLEWARE
+================================ */
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+  })
+);
+
 app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.urlencoded({ extended: true }));
 
-// --- MongoDB Connection ---
+/* ===============================
+   DATABASE
+================================ */
 mongoose
-  .connect(process.env.MONGO_URI || "mongodb://localhost:27017/hexacare")
+  .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.error("❌ MongoDB Connection Error:", err));
+  .catch((err) =>
+    console.error("❌ MongoDB Connection Error:", err.message)
+  );
 
-// --- Database Schema ---
-const Scan = mongoose.model("Scan", new mongoose.Schema({
+/* ===============================
+   SCHEMA
+================================ */
+const Scan = mongoose.model(
+  "Scan",
+  new mongoose.Schema({
     userEmail: String,
     symptoms: String,
     prediction: String,
     confidence: String,
     recommendation: String,
-    type: { type: String, default: "symptom" },
+    type: String,
     date: { type: Date, default: Date.now },
-}));
+  })
+);
 
-// --- Initialize Routes ---
+/* ===============================
+   ROUTES
+================================ */
 setupRoutes(app, Scan);
 
+/* ===============================
+   SERVER START
+================================ */
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 HexaCare Server running on ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 HexaCare Server running on port ${PORT}`);
+});
+
