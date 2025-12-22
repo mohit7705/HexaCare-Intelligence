@@ -3,113 +3,142 @@ import json
 import joblib
 import os
 
-# Get the directory where symptoms.py is located
+# --------------------------------------------------
+# PATH RESOLUTION (RENDER SAFE)
+# --------------------------------------------------
 BASE = os.path.dirname(os.path.abspath(__file__))
 
 def load_resource(filename):
     """
-    Production-grade path resolver to find model files.
-    Tries multiple common locations to prevent 'File Not Found' errors on Render.
+    Production-grade resolver for Render / local / CI.
     """
-    # Path 1: Look in ../models (Relative to 'server' folder)
     path1 = os.path.abspath(os.path.join(BASE, "..", "models", filename))
-    # Path 2: Look in ./models (Inside 'server' folder)
     path2 = os.path.abspath(os.path.join(BASE, "models", filename))
-    
+
     if os.path.exists(path1):
         return joblib.load(path1)
-    elif os.path.exists(path2):
+    if os.path.exists(path2):
         return joblib.load(path2)
-    else:
-        raise FileNotFoundError(f"Could not find {filename} at {path1} or {path2}")
 
-# Load ML model and encoder
+    raise FileNotFoundError(f"Missing model file: {filename}")
+
+# --------------------------------------------------
+# LOAD MODEL + ENCODER (FAIL FAST)
+# --------------------------------------------------
 try:
     MODEL = load_resource("symptom_model.pkl")
     ENCODER = load_resource("symptom_label_encoder.pkl")
 except Exception as e:
-    # Print as JSON so Node.js can catch the specific error
-    print(json.dumps({"error": f"Model loading failed: {str(e)}"}))
+    print(json.dumps({
+        "diagnosis": "System Error",
+        "confidence": "N/A",
+        "recommendation": f"Model loading failed: {str(e)}"
+    }))
+    sys.stdout.flush()
     sys.exit(1)
 
-# Keywords for ML feature extraction
+# --------------------------------------------------
+# FEATURE KEYWORDS
+# --------------------------------------------------
 KEYWORDS = {
     "fever": ["fever", "high temperature", "feverish"],
     "cough": ["cough", "coughing", "dry cough"],
     "chest_pain": ["chest pain", "pain in chest", "heart pain"],
-    "breathing": ["breath", "breathing", "shortness of breath", "breathing difficulty"],
-    "headache": ["headache", "head pain", "migraine"],
+    "breathing": ["shortness of breath", "breathing difficulty"],
+    "headache": ["headache", "head pain", "migraine"]
 }
 
+# --------------------------------------------------
+# NEGATION DETECTOR
+# --------------------------------------------------
+def is_negated(phrase, text):
+    negations = ["no", "not", "do not have", "dont have", "without"]
+    for neg in negations:
+        neg_index = text.find(neg)
+        phrase_index = text.find(phrase)
+        if neg_index != -1 and phrase_index != -1:
+            if 0 < phrase_index - neg_index < 60:
+                return True
+    return False
+
+# --------------------------------------------------
+# MAIN ANALYSIS
+# --------------------------------------------------
 def analyze():
     try:
-        # ✅ FIX: Safely read and parse input from Node.js
         raw_input = sys.stdin.read().strip()
         if not raw_input:
-            raise ValueError("No input received")
-        
-        # Handle if Node.js sends a JSON string or a plain string
+            raise ValueError("No input received from Node.js")
+
         try:
-            input_data = json.loads(raw_input)
-            # If Node.js sent { "symptomData": "..." }, extract it
-            if isinstance(input_data, dict) and "symptomData" in input_data:
-                input_text = str(input_data["symptomData"]).lower()
+            parsed = json.loads(raw_input)
+            if isinstance(parsed, dict) and "symptomData" in parsed:
+                input_text = str(parsed["symptomData"]).lower()
             else:
-                input_text = str(input_data).lower()
-        except:
+                input_text = str(parsed).lower()
+        except json.JSONDecodeError:
             input_text = raw_input.lower()
 
     except Exception as e:
         print(json.dumps({
             "diagnosis": "System Error",
             "confidence": "N/A",
-            "recommendation": f"Input Processing Error: {str(e)}"
+            "recommendation": f"Input error: {str(e)}"
         }))
+        sys.stdout.flush()
         return
 
-    # ---------------------------------
-    # Rule-based medical triage layer
-    # ---------------------------------
-    HIGH_RISK = ["chest pain", "shortness of breath", "breathing difficulty", "fainting", "unconscious", "severe pain"]
-    MILD = ["cold", "mild cold", "slight headache", "sneezing", "runny nose"]
+    # --------------------------------------------------
+    # RULE-BASED TRIAGE (OVERRIDES)
+    # --------------------------------------------------
+    HIGH_RISK = [
+        "chest pain",
+        "shortness of breath",
+        "breathing difficulty",
+        "fainting",
+        "unconscious",
+        "severe pain"
+    ]
 
-    def is_negated(symptom):
-        negations = ["no", "not", "do not have", "dont have", "without"]
-        for neg in negations:
-            neg_index = input_text.find(neg)
-            symptom_index = input_text.find(symptom)
-            if neg_index != -1 and symptom_index != -1:
-                # If negation appears within 60 characters before the symptom
-                if 0 < symptom_index - neg_index < 60:
-                    return True
-        return False
+    MILD = [
+        "cold",
+        "mild cold",
+        "slight headache",
+        "sneezing",
+        "runny nose"
+    ]
 
-    # 1️⃣ HIGH-risk override (Only if NOT negated)
-    for s in HIGH_RISK:
-        if s in input_text and not is_negated(s):
+    for phrase in HIGH_RISK:
+        if phrase in input_text and not is_negated(phrase, input_text):
             print(json.dumps({
                 "diagnosis": "High Risk",
                 "confidence": "High (Rule-Based Override)",
-                "recommendation": "Emergency symptoms detected. Please seek immediate medical help or call emergency services."
+                "recommendation": "Emergency symptoms detected. Seek immediate medical help."
             }))
+            sys.stdout.flush()
             return
 
-    # 2️⃣ LOW-risk override
-    if any(s in input_text for s in MILD):
-        print(json.dumps({
-            "diagnosis": "Low Risk",
-            "confidence": "Low (Initial Screening)",
-            "recommendation": "Symptoms appear mild. Ensure rest and hydration. Consult a doctor if symptoms persist."
-        }))
-        return
+    for phrase in MILD:
+        if phrase in input_text:
+            print(json.dumps({
+                "diagnosis": "Low Risk",
+                "confidence": "Low (Initial Screening)",
+                "recommendation": "Symptoms appear mild. Rest, hydrate, and monitor."
+            }))
+            sys.stdout.flush()
+            return
 
-    # ---------------------------------
-    # ML Fallback
-    # ---------------------------------
-    features = [
-        1 if any(k in input_text and not is_negated(k) for k in v) else 0
-        for v in KEYWORDS.values()
-    ]
+    # --------------------------------------------------
+    # ML FALLBACK (STABLE FEATURE VECTOR)
+    # --------------------------------------------------
+    features = []
+    for phrases in KEYWORDS.values():
+        detected = False
+        for phrase in phrases:
+            if phrase in input_text and not is_negated(phrase, input_text):
+                detected = True
+                break
+        features.append(1 if detected else 0)
 
     try:
         prediction = MODEL.predict([features])[0]
@@ -118,14 +147,20 @@ def analyze():
         print(json.dumps({
             "diagnosis": str(label),
             "confidence": "Medium (Neural Analysis)",
-            "recommendation": "Based on the neural scan, monitor your symptoms and consult a professional for a formal diagnosis."
+            "recommendation": "Monitor symptoms and consult a healthcare professional."
         }))
-    except Exception as e:
+        sys.stdout.flush()
+
+    except Exception:
         print(json.dumps({
             "diagnosis": "Inconclusive",
             "confidence": "Low",
-            "recommendation": "We couldn't determine a specific condition. Please consult a healthcare professional."
+            "recommendation": "Unable to determine condition. Please consult a doctor."
         }))
+        sys.stdout.flush()
 
+# --------------------------------------------------
+# ENTRY POINT
+# --------------------------------------------------
 if __name__ == "__main__":
     analyze()
