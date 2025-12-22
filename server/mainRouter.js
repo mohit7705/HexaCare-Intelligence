@@ -13,20 +13,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /* ==================================================
-    PYTHON RUNNER — RENDER SAFE
+   PYTHON RUNNER — RENDER / PROD SAFE
 ================================================== */
 const runPythonScript = (scriptName, inputData) => {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(__dirname, scriptName);
 
     const python = spawn("python3", [scriptPath], {
-      stdio: ["pipe", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"]
     });
 
     let output = "";
     let errorOutput = "";
 
-    // ⏱️ HARD TIMEOUT (Render Free Tier Safe)
+    // ⏱️ HARD TIMEOUT (Render-safe)
     const timeout = setTimeout(() => {
       python.kill("SIGKILL");
       reject("Python script timeout");
@@ -62,30 +62,40 @@ const runPythonScript = (scriptName, inputData) => {
 };
 
 /* ==================================================
-    ROUTES
+   ROUTES (ALL APIs MOUNTED UNDER /api)
 ================================================== */
 export const setupRoutes = (app, Scan) => {
 
-  // 🚀 ADDED: BASIC HEALTH CHECK (To test if connection is live)
+  /* 🧪 HEALTH CHECK */
   app.get("/api/health", (req, res) => {
-    res.json({ status: "online", engine: "HexaCare Neural Engine" });
+    res.json({
+      status: "online",
+      engine: "HexaCare Neural Engine",
+      time: new Date().toISOString()
+    });
   });
 
   /* 1️⃣ SYMPTOM CHECKER */
   app.post("/api/analyze", async (req, res) => {
     try {
-      const ai = await runPythonScript("symptoms.py", req.body.symptomData);
+      const { symptomData, userEmail } = req.body;
+
+      if (!symptomData) {
+        return res.status(400).json({ error: "symptomData is required" });
+      }
+
+      const ai = await runPythonScript("symptoms.py", symptomData);
 
       const scan = await Scan.create({
-        userEmail: req.body.userEmail || "guest@hexacare.ai",
-        symptoms: req.body.symptomData,
+        userEmail: userEmail || "guest@hexacare.ai",
+        symptoms: symptomData,
         prediction: ai.diagnosis,
         confidence: ai.confidence,
         recommendation: ai.recommendation,
-        type: "symptom",
+        type: "symptom"
       });
 
-      res.json(scan);
+      res.json({ success: true, scan });
     } catch (err) {
       console.error("❌ Symptom Error:", err);
       res.status(500).json({ error: "Symptom analysis failed" });
@@ -103,10 +113,10 @@ export const setupRoutes = (app, Scan) => {
         prediction: ai.risk,
         confidence: `${Math.round((ai.probability || 0) * 100)}%`,
         recommendation: ai.message,
-        type: "diabetes",
+        type: "diabetes"
       });
 
-      res.json(scan);
+      res.json({ success: true, scan });
     } catch (err) {
       console.error("❌ Diabetes Error:", err);
       res.status(500).json({ error: "Diabetes analysis failed" });
@@ -124,20 +134,24 @@ export const setupRoutes = (app, Scan) => {
         prediction: ai.risk,
         confidence: `${Math.round((ai.probability || 0) * 100)}%`,
         recommendation: ai.message,
-        type: "heart",
+        type: "heart"
       });
 
-      res.json(scan);
+      res.json({ success: true, scan });
     } catch (err) {
       console.error("❌ Heart Error:", err);
       res.status(500).json({ error: "Heart risk analysis failed" });
     }
   });
 
-  /* 4️⃣ MENTAL HEALTH (NO PYTHON – STABLE) */
+  /* 4️⃣ MENTAL HEALTH (NO PYTHON — STABLE) */
   app.post("/api/mental-health", async (req, res) => {
     try {
       const { responses, userEmail } = req.body;
+
+      if (!Array.isArray(responses)) {
+        return res.status(400).json({ error: "responses array required" });
+      }
 
       const score = responses.reduce((s, v) => s + Number(v || 0), 0);
 
@@ -155,10 +169,10 @@ export const setupRoutes = (app, Scan) => {
             : level === "Moderate"
             ? "Some stress indicators detected."
             : "High stress detected. Seek professional help.",
-        type: "mental-health",
+        type: "mental-health"
       });
 
-      res.json({ score, level, scanId: scan._id });
+      res.json({ success: true, score, level, scanId: scan._id });
     } catch (err) {
       console.error("❌ Mental Health Error:", err);
       res.status(500).json({ error: "Mental health analysis failed" });
@@ -168,6 +182,10 @@ export const setupRoutes = (app, Scan) => {
   /* 5️⃣ SKIN DISEASE (GEMINI VISION) */
   app.post("/api/vision", async (req, res) => {
     try {
+      if (!req.body.image) {
+        return res.status(400).json({ error: "image is required" });
+      }
+
       const ai = await analyzeSkinImage(req.body.image);
 
       const scan = await Scan.create({
@@ -175,10 +193,10 @@ export const setupRoutes = (app, Scan) => {
         symptoms: "Skin Image",
         prediction: ai.summary,
         recommendation: ai.disclaimer,
-        type: "vision",
+        type: "vision"
       });
 
-      res.json({ ...ai, scanId: scan._id });
+      res.json({ success: true, ...ai, scanId: scan._id });
     } catch (err) {
       console.error("❌ Vision Error:", err);
       res.status(500).json({ error: "Vision analysis failed" });
@@ -188,8 +206,13 @@ export const setupRoutes = (app, Scan) => {
   /* 6️⃣ TRUSTCHAIN WRITE */
   app.post("/api/trustchain/write", async (req, res) => {
     try {
+      if (!req.body.hash) {
+        return res.status(400).json({ error: "hash required" });
+      }
+
       res.json(await writeHashToStellar(req.body.hash));
     } catch (err) {
+      console.error("❌ TrustChain Write Error:", err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -197,8 +220,13 @@ export const setupRoutes = (app, Scan) => {
   /* 7️⃣ TRUSTCHAIN VERIFY */
   app.post("/api/trustchain/verify", async (req, res) => {
     try {
+      if (!req.body.hash) {
+        return res.status(400).json({ error: "hash required" });
+      }
+
       res.json(await verifyOnStellar(req.body.hash));
     } catch (err) {
+      console.error("❌ TrustChain Verify Error:", err);
       res.status(500).json({ error: err.message });
     }
   });
