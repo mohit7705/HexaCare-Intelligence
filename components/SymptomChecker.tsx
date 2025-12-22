@@ -3,6 +3,9 @@ import "./symptom.css";
 import { auth } from "../firebase";
 import { saveHistory } from "../services/saveHistory";
 
+// ✅ API base URL (local vs production handled automatically)
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
 const SymptomChecker = () => {
   const [symptoms, setSymptoms] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,7 +21,7 @@ const SymptomChecker = () => {
     setResult(null);
 
     try {
-      const res = await fetch("http://localhost:5000/api/analyze", {
+      const res = await fetch(`${API_BASE}/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -41,7 +44,7 @@ const SymptomChecker = () => {
 
       setResult(finalResult);
 
-      // ✅ SAVE HISTORY (WORKING + VERIFIED)
+      // ✅ SAVE HISTORY
       if (auth.currentUser) {
         await saveHistory(
           auth.currentUser.uid,
@@ -56,7 +59,7 @@ const SymptomChecker = () => {
       setResult({
         risk: "System Offline",
         message:
-          "Unable to connect to the neural engine. Please check if server.js is running.",
+          "Unable to connect to the neural engine. Please try again later.",
       });
     } finally {
       setLoading(false);
