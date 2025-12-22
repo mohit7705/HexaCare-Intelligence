@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /* ==================================================
-   PYTHON RUNNER — RENDER / PROD SAFE
+   PYTHON RUNNER — FINAL RENDER SAFE
 ================================================== */
 const runPythonScript = (scriptName, inputData) => {
   return new Promise((resolve, reject) => {
@@ -26,13 +26,14 @@ const runPythonScript = (scriptName, inputData) => {
     let output = "";
     let errorOutput = "";
 
-    // ⏱️ HARD TIMEOUT (Render-safe)
+    // ⏱️ FINAL SAFE TIMEOUT (Render ML compatible)
     const timeout = setTimeout(() => {
       python.kill("SIGKILL");
       reject("Python script timeout");
-    }, 15000);
+    }, 30000); // ⬅️ increased from 15s → 30s
 
-    python.stdin.write(JSON.stringify(inputData));
+    // 🔒 ALWAYS send JSON (prevents stdin hang)
+    python.stdin.write(JSON.stringify(inputData || {}));
     python.stdin.end();
 
     python.stdout.on("data", (data) => {
@@ -62,7 +63,7 @@ const runPythonScript = (scriptName, inputData) => {
 };
 
 /* ==================================================
-   ROUTES (ALL APIs MOUNTED UNDER /api)
+   ROUTES
 ================================================== */
 export const setupRoutes = (app, Scan) => {
 
@@ -84,7 +85,10 @@ export const setupRoutes = (app, Scan) => {
         return res.status(400).json({ error: "symptomData is required" });
       }
 
-      const ai = await runPythonScript("symptoms.py", symptomData);
+      // 🔒 Always wrap input for Python
+      const ai = await runPythonScript("symptoms.py", {
+        symptomData
+      });
 
       const scan = await Scan.create({
         userEmail: userEmail || "guest@hexacare.ai",
@@ -144,7 +148,7 @@ export const setupRoutes = (app, Scan) => {
     }
   });
 
-  /* 4️⃣ MENTAL HEALTH (NO PYTHON — STABLE) */
+  /* 4️⃣ MENTAL HEALTH */
   app.post("/api/mental-health", async (req, res) => {
     try {
       const { responses, userEmail } = req.body;
@@ -154,9 +158,7 @@ export const setupRoutes = (app, Scan) => {
       }
 
       const score = responses.reduce((s, v) => s + Number(v || 0), 0);
-
-      const level =
-        score <= 7 ? "Low" : score <= 15 ? "Moderate" : "High";
+      const level = score <= 7 ? "Low" : score <= 15 ? "Moderate" : "High";
 
       const scan = await Scan.create({
         userEmail: userEmail || "guest@hexacare.ai",
@@ -179,7 +181,7 @@ export const setupRoutes = (app, Scan) => {
     }
   });
 
-  /* 5️⃣ SKIN DISEASE (GEMINI VISION) */
+  /* 5️⃣ SKIN DISEASE */
   app.post("/api/vision", async (req, res) => {
     try {
       if (!req.body.image) {
@@ -203,30 +205,19 @@ export const setupRoutes = (app, Scan) => {
     }
   });
 
-  /* 6️⃣ TRUSTCHAIN WRITE */
+  /* 6️⃣ TRUSTCHAIN */
   app.post("/api/trustchain/write", async (req, res) => {
     try {
-      if (!req.body.hash) {
-        return res.status(400).json({ error: "hash required" });
-      }
-
       res.json(await writeHashToStellar(req.body.hash));
     } catch (err) {
-      console.error("❌ TrustChain Write Error:", err);
       res.status(500).json({ error: err.message });
     }
   });
 
-  /* 7️⃣ TRUSTCHAIN VERIFY */
   app.post("/api/trustchain/verify", async (req, res) => {
     try {
-      if (!req.body.hash) {
-        return res.status(400).json({ error: "hash required" });
-      }
-
       res.json(await verifyOnStellar(req.body.hash));
     } catch (err) {
-      console.error("❌ TrustChain Verify Error:", err);
       res.status(500).json({ error: err.message });
     }
   });
