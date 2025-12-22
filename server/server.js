@@ -44,4 +44,4 @@ const Scan = mongoose.model("Scan", new mongoose.Schema({
 setupRoutes(app, Scan);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 HexaCare Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`🚀 HexaCare Server running on ${PORT}`));
