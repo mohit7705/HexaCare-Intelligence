@@ -2,59 +2,42 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="https://picsum.photos/32/32" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HexaCare Intelligence</title>
-    
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CSS (Script for runtime config as requested) -->
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Tailwind CDN (KEEP – matches your setup) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              techBlue: '#2069E0',
-              skyGlow: '#4AB3FF',
-              navy: '#0A1A2F',
-              pale: '#F8FBFF',
-              bodyText: '#5A6A85',
+              techBlue: "#2069E0",
+              skyGlow: "#4AB3FF",
+              navy: "#0A1A2F",
+              pale: "#F8FBFF",
+              bodyText: "#5A6A85",
             },
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              heading: ['Poppins', 'sans-serif'],
+              sans: ["Inter", "sans-serif"],
+              heading: ["Poppins", "sans-serif"],
             },
-            backgroundImage: {
-              'gradient-primary': 'linear-gradient(135deg, #2069E0 0%, #4AB3FF 100%)',
-            }
-          }
-        }
-      }
+          },
+        },
+      };
     </script>
-    <style>
-      /* Smooth scrolling */
-      html { scroll-behavior: smooth; }
-      body { background-color: #F8FBFF; color: #0A1A2F; }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "framer-motion": "https://esm.sh/framer-motion@^12.23.26",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
-</head>
-  <body>
+  </head>
+
+  <body class="overflow-x-hidden">
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>

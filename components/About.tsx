@@ -3,64 +3,78 @@ import { motion } from 'framer-motion';
 
 const About: React.FC = () => {
   return (
-    <section id="about" className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="lg:grid lg:grid-cols-5 lg:gap-16 items-center">
+    <section id="about" className="relative z-20 py-40 bg-white/90 backdrop-blur-sm">
+      <div className="max-w-7xl mx-auto px-6 lg:px-12">
+        <div className="lg:grid lg:grid-cols-2 lg:gap-24 items-center">
           
-          {/* Image Side (40%) */}
+          {/* IMAGE — UPDATED TO LOCAL FILE */}
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="lg:col-span-2 mb-10 lg:mb-0"
+            initial={{ opacity: 0, x: -50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true, margin: "-100px" }}
+            className="mb-16 lg:mb-0"
           >
-            <div className="relative rounded-3xl overflow-hidden shadow-xl border border-gray-100">
-               <img 
-                src="https://picsum.photos/600/800?random=2" 
-                alt="AI Doctor Interface" 
-                className="w-full h-full object-cover"
+            <div className="relative rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white">
+              <img 
+                src="/images/about-hexacare-ai-health.jpg"
+                alt="AI-powered human health screening visualization"
+                className="w-full h-[600px] object-cover grayscale hover:grayscale-0 transition-all duration-1000"
               />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-navy/80 to-transparent p-6">
-                <p className="text-white font-heading font-semibold">Trustworthy AI Analysis</p>
-                <p className="text-gray-200 text-sm">Validating over 1M+ data points</p>
-              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-navy via-transparent to-transparent opacity-60"></div>
             </div>
           </motion.div>
 
-          {/* Text Side (60%) */}
+          {/* TEXT — UNCHANGED */}
           <motion.div 
-            initial={{ opacity: 0, x: 30 }}
+            initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            viewport={{ once: true }}
-            className="lg:col-span-3"
+            transition={{ duration: 0.8, delay: 0.2 }}
+            viewport={{ once: true, margin: "-100px" }}
           >
-            <h2 className="font-heading font-bold text-3xl lg:text-4xl text-navy mb-6">
-              About HexaCare
+            <h2 className="font-heading font-black text-5xl lg:text-7xl text-navy mb-10 tracking-tighter">
+              About <span className="text-techBlue">HexaCare</span>
             </h2>
-            <div className="space-y-6 text-bodyText text-lg leading-relaxed">
+
+            <div className="space-y-8 text-navy/80 text-xl leading-relaxed font-medium">
               <p>
-                HexaCare Intelligence is an AI-powered preventive health platform designed to detect risks early across multiple domains—physical, mental, metabolic, cardiac, dermatological, and women’s wellness.
+                HexaCare Intelligence is an AI-powered preventive health screening
+                platform built to identify potential health risks early — before
+                they escalate into serious conditions.
               </p>
-              <p>
-                Our mission is to make early screening accessible, accurate, and actionable for everyone. We believe that technology should bridge the gap between symptoms and diagnosis.
+
+              <p className="border-l-4 border-techBlue pl-6 italic text-navy/60">
+                Our mission is to make early health screening accessible,
+                responsible, and actionable by combining advanced AI with
+                human-centric system design.
               </p>
+
               <p>
-                Using a combination of LLMs, machine learning, vision models, and secure Stellar blockchain, HexaCare delivers medical-grade insights within seconds, ensuring your health data remains private and immutable.
+                By integrating large language models, machine learning, computer
+                vision, and blockchain-based verification, HexaCare delivers fast,
+                transparent, and tamper-resistant health insights across multiple
+                screening domains.
               </p>
             </div>
             
-            <div className="mt-8 flex items-center space-x-4">
-              <div className="flex -space-x-2">
+            {/* TRUST SECTION — UNCHANGED */}
+            <div className="mt-12 flex items-center space-x-6">
+              <div className="flex -space-x-3">
                 {[1, 2, 3, 4].map((i) => (
-                  <img key={i} className="w-10 h-10 rounded-full border-2 border-white" src={`https://picsum.photos/50/50?random=${i + 10}`} alt="User" />
+                  <img
+                    key={i}
+                    className="w-12 h-12 rounded-full border-4 border-white shadow-lg"
+                    src={`https://picsum.photos/100/100?random=${i + 10}`}
+                    alt="Community"
+                  />
                 ))}
               </div>
-              <p className="text-sm text-navy font-medium">Trusted by 10,000+ early adopters</p>
+
+              <p className="text-sm text-navy font-black uppercase tracking-widest">
+                Built with research-driven design principles
+              </p>
             </div>
           </motion.div>
-
         </div>
       </div>
     </section>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ButtonVariant } from '../types';
+import { ButtonVariant } from '../types'; // Updated path since you have no src folder
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -13,19 +13,25 @@ const Button: React.FC<ButtonProps> = ({
   className = '', 
   ...props 
 }) => {
-  const baseStyles = "px-8 py-3 rounded-full font-medium transition-all duration-300 transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none";
+  // Base styles: removed fixed px/py so you can override them in Hero vs Navbar
+  const baseStyles = "inline-flex items-center justify-center rounded-full font-bold transition-all duration-300 transform active:scale-95 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed";
   
   let variantStyles = "";
   
   switch (variant) {
     case ButtonVariant.PRIMARY:
-      variantStyles = "bg-gradient-primary text-white shadow-lg hover:shadow-xl focus:ring-techBlue";
+      // This matches the vibrant blue and shadow glow from your first image
+      variantStyles = "bg-[#0070f3] text-white shadow-[0_10px_30px_rgba(0,112,243,0.3)] hover:shadow-[0_15px_40px_rgba(0,112,243,0.4)] hover:-translate-y-1";
+      break;
+    case ButtonVariant.SECONDARY:
+      // A slightly softer navy/dark blue variant
+      variantStyles = "bg-[#001e3c] text-white hover:bg-[#001e3c]/90 shadow-md";
       break;
     case ButtonVariant.OUTLINE:
-      variantStyles = "bg-transparent border-2 border-techBlue text-techBlue hover:bg-techBlue hover:text-white focus:ring-techBlue";
+      variantStyles = "bg-transparent border-2 border-[#0070f3] text-[#0070f3] hover:bg-[#0070f3] hover:text-white";
       break;
     case ButtonVariant.GHOST:
-      variantStyles = "bg-transparent text-techBlue hover:bg-pale";
+      variantStyles = "bg-transparent text-[#001e3c] hover:bg-gray-100";
       break;
   }
 

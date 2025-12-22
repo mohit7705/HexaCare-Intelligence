@@ -1,61 +1,82 @@
-// components/Hero.tsx
 import React from 'react';
-import { ArrowRight, Activity } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Button from './Button';
-import Hero3DBackground from './Hero3DBackground'; // <--- 1. Import the new component
+import { ButtonVariant } from '../types';
+import { Hexagon, ShieldCheck, ChevronDown } from 'lucide-react';
 
-const Hero: React.FC = () => {
-  const scrollTo = (id: string) => {
-    const element = document.getElementById(id);
-    element?.scrollIntoView({ behavior: 'smooth' });
+interface HeroProps {
+  onStart: () => void;
+  user: any;
+}
+
+const Hero: React.FC<HeroProps> = ({ onStart, user }) => {
+  const navigate = useNavigate();
+
+  const handleStart = () => {
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      onStart();
+    }
   };
 
   return (
-    <section id="hero" className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
-      {/* 2. Add the 3D Background here. It has `absolute` and `-z-10` styles
-          inside it, so it will sit behind everything else. */}
-      <Hero3DBackground />
+    <section
+      id="hero"
+      className="relative h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-transparent"
+    >
+      <div className="container mx-auto px-6 relative z-10">
+        <div className="max-w-5xl mx-auto text-center flex flex-col items-center">
 
-      <div className="container mx-auto px-4 relative z-10"> {/* z-10 keeps text on top */}
-        <div className="max-w-4xl mx-auto text-center">
-          {/* A new "New Feature" badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 mb-8 animate-fade-in-up">
-            <Activity className="w-4 h-4 text-techBlue" />
-            <span className="text-sm font-medium text-navy">
-              Now powered by Next-Gen Neural Engines
-            </span>
+          {/* BRAND */}
+          <div className="mb-10 animate-in fade-in zoom-in duration-1000">
+            <div className="flex flex-col items-center gap-4 opacity-60 hover:opacity-100 transition-opacity duration-500">
+              <Hexagon className="h-16 w-16 text-[#0070f3] fill-[#0070f3]/10" />
+              <span className="font-bold text-xl tracking-[0.15em] text-[#001e3c] uppercase">
+                HexaCare <span className="text-[#0070f3]">Intelligence</span>
+              </span>
+            </div>
           </div>
 
-          <h1 className="text-5xl lg:text-7xl font-bold text-navy mb-8 tracking-tight leading-tight animate-fade-in-up decoration-slice">
-            Reinventing <span className="text-transparent bg-clip-text bg-gradient-to-r from-techBlue to-skyGlow">Early Health Screening</span> with AI + Blockchain
+          {/* HEADLINE */}
+          <h1 className="text-6xl lg:text-8xl font-black text-[#001e3c] mb-6 tracking-tighter leading-tight animate-in slide-in-from-bottom-8 duration-1000">
+            Reinventing <br />
+            Health Screening
           </h1>
-          
-          <p className="text-xl text-slateBlue mb-12 max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-100">
-            HexaCare Intelligence is a next-generation 6-in-1 health screening 
-            platform powered by LLMs, ML, Vision AI, and Stellar blockchain.
+
+          <p className="text-xl lg:text-2xl text-navy/70 font-medium mb-12 max-w-2xl animate-in fade-in duration-1000 delay-300">
+            Detect health risks early using AI — before symptoms become serious.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-200">
-            <Button 
-              variant="primary" 
-              size="lg" 
-              icon={<ArrowRight className="w-5 h-5" />}
-              onClick={() => scrollTo('contact')}
+          {/* CTA */}
+          <div className="animate-in fade-in duration-1000 delay-500 flex flex-col items-center gap-8">
+            <Button
+              variant={ButtonVariant.PRIMARY}
+              className="px-16 py-6 text-xl font-black uppercase tracking-[0.2em] rounded-full shadow-[0_20px_50px_rgba(0,112,243,0.3)] hover:scale-105 transition-all duration-300 bg-[#0070f3]"
+              onClick={handleStart}
             >
-              Get Started
+              Start Free Health Screening
             </Button>
-            <Button 
-              variant="outline" 
-              size="lg"
-              onClick={() => scrollTo('features')}
-            >
-              Explore Features
-            </Button>
+
+            {/* TRUST BADGE */}
+            <div className="flex items-center gap-2 text-[#001e3c]/70 font-bold text-sm uppercase tracking-widest bg-white/40 px-6 py-2 rounded-full backdrop-blur-sm">
+              <ShieldCheck size={18} className="text-[#0070f3]" />
+              🔒 Privacy-first • AI-powered • Blockchain-secured reports
+            </div>
           </div>
         </div>
       </div>
-      
-      {/* We removed the old <img> tag from down here */}
+
+      {/* SCROLL INDICATOR */}
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 group cursor-pointer opacity-40 hover:opacity-100 transition-opacity duration-500">
+        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#001e3c]">
+          Explore how HexaCare works
+        </span>
+        <div className="relative w-[2px] h-14 bg-gray-200 overflow-hidden rounded-full">
+          <div className="absolute top-0 left-0 w-full h-1/2 bg-[#0070f3] animate-bounce"></div>
+        </div>
+        <ChevronDown size={16} className="text-[#0070f3] animate-bounce" />
+      </div>
     </section>
   );
 };

@@ -4,7 +4,13 @@ import { NAV_ITEMS } from '../constants';
 import Button from './Button';
 import { ButtonVariant } from '../types';
 
-const Navbar: React.FC = () => {
+interface NavbarProps {
+  onAuthClick: () => void;
+  user?: any;              // ✅ added
+  onLogout?: () => void;   // ✅ added
+}
+
+const Navbar: React.FC<NavbarProps> = ({ onAuthClick, user, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -17,83 +23,135 @@ const Navbar: React.FC = () => {
   }, []);
 
   const handleGetStarted = () => {
-    const contactSection = document.getElementById('contact');
-    if (contactSection) {
-      contactSection.scrollIntoView({ behavior: 'smooth' });
+    onAuthClick();
+    setIsOpen(false);
+  };
+
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
     }
     setIsOpen(false);
   };
 
   return (
-    <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-      scrolled || isOpen ? 'bg-white/90 backdrop-blur-md shadow-sm' : 'bg-transparent'
-    }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
-          {/* Logo */}
-          <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => window.scrollTo(0,0)}>
-            <Hexagon className="h-8 w-8 text-techBlue fill-techBlue/10 animate-pulse mr-2" />
-            <span className="font-heading font-bold text-xl tracking-tight text-techBlue">
-              HexaCare<span className="text-navy">Intelligence</span>
+    <nav
+      className={`
+        fixed top-0 left-0 right-0
+        z-[9999]
+        w-full
+        transition-all duration-300
+        ${scrolled 
+          ? 'bg-white/90 backdrop-blur-md shadow-sm py-2' 
+          : 'bg-transparent py-4'}
+      `}
+    >
+      <div className="w-full px-6 lg:px-12">
+        <div className="max-w-[1440px] mx-auto flex justify-between items-center h-16 lg:h-20">
+
+          {/* LOGO */}
+          <div
+            className="flex items-center cursor-pointer group shrink-0"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
+            <Hexagon className="h-8 w-8 lg:h-10 lg:w-10 text-[#0070f3] fill-[#0070f3]/10 mr-3" />
+            <span className="font-heading font-black text-xl lg:text-2xl text-[#001e3c] uppercase tracking-tighter">
+              HexaCare <span className="text-[#0070f3]">Intelligence</span>
             </span>
           </div>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-8">
+          {/* DESKTOP NAV */}
+          <div className="hidden md:flex items-center space-x-8 lg:space-x-10">
             {NAV_ITEMS.map((item) => (
               <a
                 key={item.label}
                 href={item.href}
-                className="font-sans text-bodyText hover:text-techBlue font-medium transition-colors"
+                className="font-sans font-bold text-[11px] lg:text-xs uppercase tracking-[0.2em] text-[#001e3c] hover:text-[#0070f3] transition-colors"
               >
                 {item.label}
               </a>
             ))}
-            <Button 
-              variant={ButtonVariant.PRIMARY} 
-              className="px-6 py-2 text-sm"
-              onClick={handleGetStarted}
-            >
-              Get Started
-            </Button>
+
+            {/* ✅ AUTH-AWARE BUTTONS (added, not replaced) */}
+            {user ? (
+              <>
+                <a
+                  href="/dashboard"
+                  className="font-sans font-bold text-[11px] lg:text-xs uppercase tracking-[0.2em] text-[#001e3c] hover:text-[#0070f3]"
+                >
+                  Dashboard
+                </a>
+
+                <Button
+                  variant={ButtonVariant.PRIMARY}
+                  className="px-6 py-2.5 lg:px-8 lg:py-3 text-[10px] lg:text-xs font-black uppercase tracking-widest rounded-full bg-red-500"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant={ButtonVariant.PRIMARY}
+                className="px-6 py-2.5 lg:px-8 lg:py-3 text-[10px] lg:text-xs font-black uppercase tracking-widest rounded-full bg-[#0070f3]"
+                onClick={handleGetStarted}
+              >
+                Get Started
+              </Button>
+            )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="text-navy hover:text-techBlue focus:outline-none"
-            >
-              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          {/* MOBILE MENU BUTTON */}
+          <div className="md:hidden">
+            <button onClick={() => setIsOpen(!isOpen)} className="text-[#001e3c]">
+              {isOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Menu Drawer */}
+      {/* MOBILE MENU */}
       {isOpen && (
-        <div className="md:hidden bg-white/95 backdrop-blur-xl border-t border-gray-100 absolute w-full">
-          <div className="px-4 pt-4 pb-8 space-y-4">
-            {NAV_ITEMS.map((item) => (
+        <div className="md:hidden bg-white border-t px-6 py-8 space-y-6 shadow-xl animate-in slide-in-from-top duration-300">
+          {NAV_ITEMS.map((item) => (
+            <a
+              key={item.label}
+              href={item.href}
+              onClick={() => setIsOpen(false)}
+              className="block text-[#001e3c] font-bold text-sm uppercase tracking-[0.2em]"
+            >
+              {item.label}
+            </a>
+          ))}
+
+          {/* ✅ MOBILE AUTH-AWARE BUTTONS */}
+          {user ? (
+            <>
               <a
-                key={item.label}
-                href={item.href}
+                href="/dashboard"
                 onClick={() => setIsOpen(false)}
-                className="block font-sans text-navy hover:text-techBlue font-medium text-lg py-2 border-b border-gray-100"
+                className="block text-[#001e3c] font-bold text-sm uppercase tracking-[0.2em]"
               >
-                {item.label}
+                Dashboard
               </a>
-            ))}
-            <div className="pt-4">
-               <Button 
-                variant={ButtonVariant.PRIMARY} 
-                className="w-full"
-                onClick={handleGetStarted}
+
+              <Button
+                variant={ButtonVariant.PRIMARY}
+                className="w-full py-4 rounded-xl bg-red-500"
+                onClick={handleLogout}
               >
-                Get Started
+                Logout
               </Button>
-            </div>
-          </div>
+            </>
+          ) : (
+            <Button
+              variant={ButtonVariant.PRIMARY}
+              className="w-full py-4 rounded-xl bg-[#0070f3]"
+              onClick={handleGetStarted}
+            >
+              Get Started
+            </Button>
+          )}
         </div>
       )}
     </nav>
