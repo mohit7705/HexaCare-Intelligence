@@ -3,8 +3,9 @@ import "./symptom.css";
 import { auth } from "../firebase";
 import { saveHistory } from "../services/saveHistory";
 
-// ✅ Fixed: Ensure we don't have double slashes and handle local fallback
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+// ✅ API BASE (safe fallback)
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 const SymptomChecker = () => {
   const [symptoms, setSymptoms] = useState("");
@@ -21,11 +22,11 @@ const SymptomChecker = () => {
     setResult(null);
 
     try {
-      // ✅ FIX: Use /analyze (not /api/analyze) because API_BASE already includes /api
-      // Also ensure the protocol is correct (https vs http)
       const res = await fetch(`${API_BASE}/analyze`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           symptomData: symptoms,
           userEmail: auth.currentUser?.email || "anonymous@hexacare.ai",
@@ -39,14 +40,16 @@ const SymptomChecker = () => {
       const data = await res.json();
 
       const finalResult = {
-        risk: data.prediction || "Analysis Complete",
-        message: data.recommendation || "Please consult a doctor for a formal diagnosis.",
-        guidance: data.confidence || "N/A",
+        risk: data.prediction ?? "Health Insight Generated",
+        message:
+          data.recommendation ??
+          "Please consult a qualified medical professional for a formal diagnosis.",
+        guidance: data.confidence ?? "N/A",
       };
 
       setResult(finalResult);
 
-      // ✅ SAVE HISTORY (Only if logged in)
+      // ✅ Save history only if logged in
       if (auth.currentUser) {
         try {
           await saveHistory(
@@ -57,15 +60,16 @@ const SymptomChecker = () => {
             finalResult
           );
         } catch (historyError) {
-          console.error("Failed to save history:", historyError);
+          console.error("History save failed:", historyError);
         }
       }
     } catch (error) {
-      console.error("Connection Error:", error);
+      console.error("API / Network Error:", error);
       setResult({
         risk: "System Offline",
         message:
-          "Unable to connect to the neural engine. Ensure your backend is running and CORS is configured.",
+          "Unable to connect to the AI engine. Please check your backend service or try again later.",
+        guidance: null,
       });
     } finally {
       setLoading(false);
@@ -81,13 +85,16 @@ const SymptomChecker = () => {
         placeholder="Describe your symptoms (e.g., 'I have a high fever and a persistent cough')..."
         value={symptoms}
         onChange={(e) => setSymptoms(e.target.value)}
+        disabled={loading}
       />
 
       <button
         onClick={handleSubmit}
         disabled={loading}
         className={`w-full py-4 rounded-xl font-bold text-white transition-all ${
-          loading ? "bg-gray-400 cursor-not-allowed" : "bg-[#0070f3] hover:bg-[#005bc1] active:scale-95"
+          loading
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-[#0070f3] hover:bg-[#005bc1] active:scale-95"
         }`}
       >
         {loading ? (
@@ -99,16 +106,22 @@ const SymptomChecker = () => {
         )}
       </button>
 
+      {/* ✅ RESULT SECTION (ONLY AFTER SCAN) */}
       {result && (
-        <div className={`mt-8 p-6 rounded-xl border ${
-          result.risk === "System Offline" 
-          ? "bg-red-50 border-red-200 text-red-800" 
-          : "bg-[#001e3c] border-[#002d5a] text-white"
-        }`}>
+        <div
+          className={`mt-8 p-6 rounded-xl border ${
+            result.risk === "System Offline"
+              ? "bg-red-50 border-red-200 text-red-800"
+              : "bg-[#001e3c] border-[#002d5a] text-white"
+          }`}
+        >
           <h2 className="text-xl font-bold flex items-center gap-2">
-            {result.risk === "System Offline" && "⚠️"} {result.risk}
+            {result.risk === "System Offline" && "⚠️"}
+            {result.risk}
           </h2>
+
           <p className="mt-2 opacity-90">{result.message}</p>
+
           {result.guidance && result.risk !== "System Offline" && (
             <div className="mt-4 pt-4 border-t border-white/10 text-sm italic">
               Confidence Score: {result.guidance}
