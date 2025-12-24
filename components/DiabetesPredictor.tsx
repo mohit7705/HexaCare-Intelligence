@@ -2,6 +2,10 @@ import React, { useState } from "react";
 import { auth } from "../firebase";
 import { saveHistory } from "../services/saveHistory";
 
+// ✅ API BASE (same as Symptom + Mental Health)
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+
 const DiabetesPredictor: React.FC = () => {
   const [form, setForm] = useState({
     age: "",
@@ -34,7 +38,7 @@ const DiabetesPredictor: React.FC = () => {
     setResult(null);
 
     try {
-      const response = await fetch("http://localhost:5000/api/diabetes", {
+      const res = await fetch(`${API_BASE}/diabetes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -42,15 +46,15 @@ const DiabetesPredictor: React.FC = () => {
           bmi: Number(form.bmi),
           glucose: Number(form.glucose),
           family_history: Number(form.family_history),
-          userEmail: auth.currentUser?.email || "anonymous",
+          userEmail: auth.currentUser?.email || "anonymous@hexacare.ai",
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Server responded with an error.");
+      if (!res.ok) {
+        throw new Error(`Server Error: ${res.status}`);
       }
 
-      const data = await response.json();
+      const data = await res.json();
 
       const finalResult = {
         risk: data.risk,
@@ -60,19 +64,28 @@ const DiabetesPredictor: React.FC = () => {
 
       setResult(finalResult);
 
-      // ✅ SAVE HISTORY (STEP 4)
+      // ✅ SAVE HISTORY (NON-BLOCKING)
       if (auth.currentUser) {
-        await saveHistory(
-          auth.currentUser.uid,
-          "diabetes_prediction",
-          "Diabetes Risk Prediction",
-          { ...form },
-          finalResult
-        );
+        try {
+          await saveHistory(
+            auth.currentUser.uid,
+            "diabetes_prediction",
+            "Diabetes Risk Prediction",
+            { ...form },
+            finalResult
+          );
+        } catch (historyError) {
+          console.warn("History save failed:", historyError);
+        }
       }
     } catch (err) {
-      console.error("Fetch Error:", err);
-      alert("Connection failed. Ensure the server is running.");
+      console.error("Diabetes API Error:", err);
+      setResult({
+        risk: "System Offline",
+        probability: 0,
+        message:
+          "Unable to connect to the diabetes prediction service. Please try again later.",
+      });
     } finally {
       setLoading(false);
     }
@@ -127,18 +140,31 @@ const DiabetesPredictor: React.FC = () => {
       <button
         onClick={handlePredict}
         disabled={loading}
-        className="mt-8 w-full py-4 rounded-xl bg-[#0070f3] text-white font-bold"
+        className={`mt-8 w-full py-4 rounded-xl font-bold text-white transition-all ${
+          loading
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-[#0070f3] hover:bg-[#005bc1]"
+        }`}
       >
         {loading ? "Analyzing..." : "Run Prediction"}
       </button>
 
       {result && (
-        <div className="mt-8 p-6 bg-[#001e3c] text-white rounded-xl">
-          <h3 className="text-2xl font-bold">{result.risk} Risk</h3>
+        <div
+          className={`mt-8 p-6 rounded-xl ${
+            result.risk === "System Offline"
+              ? "bg-red-50 border border-red-200 text-red-800"
+              : "bg-[#001e3c] text-white"
+          }`}
+        >
+          <h3 className="text-2xl font-bold">{result.risk}</h3>
           <p className="mt-2">{result.message}</p>
-          <p className="mt-2 text-sm">
-            Probability: {(result.probability * 100).toFixed(0)}%
-          </p>
+
+          {result.risk !== "System Offline" && (
+            <p className="mt-2 text-sm">
+              Probability: {(result.probability * 100).toFixed(0)}%
+            </p>
+          )}
         </div>
       )}
     </div>
