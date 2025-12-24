@@ -7,72 +7,61 @@ export async function analyzeSkinImage(base64Image) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured");
+    throw new Error("GEMINI_API_KEY not set in environment variables");
   }
 
   try {
-    // 1️⃣ Validate input
-    if (!base64Image || typeof base64Image !== "string") {
-      throw new Error("Invalid image payload");
-    }
-
-    // 2️⃣ Extract mime type + base64 safely
-    const match = base64Image.match(/^data:(image\/\w+);base64,(.+)$/);
-
-    if (!match) {
-      throw new Error("Invalid base64 image format");
-    }
-
-    const mimeType = match[1];       // image/jpeg | image/png | image/webp
-    const base64Data = match[2];
-
-    // 3️⃣ Convert base64 → Uint8Array (REQUIRED BY GEMINI)
-    const imageBuffer = Buffer.from(base64Data, "base64");
-
-    // 4️⃣ Size protection (Render safe)
-    if (imageBuffer.length > 4 * 1024 * 1024) {
-      throw new Error("Image too large for analysis");
-    }
-
-    // 5️⃣ Init Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // ✅ Vision-stable model
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-pro"
+      model: "gemini-1.5-flash-latest",
     });
 
-    // 6️⃣ Vision input
-    const imagePart = {
-      inlineData: {
-        data: imageBuffer,
-        mimeType
-      }
-    };
+    // ✅ REMOVE base64 metadata
+    const cleanBase64 = base64Image.replace(
+      /^data:image\/(png|jpeg|jpg|webp);base64,/,
+      ""
+    );
 
     const prompt = `
 You are a medical AI assistant.
 
-Analyze the provided skin image and respond with:
-- Possible condition (if visible)
-- Risk level: Low / Medium / High
-- Simple recommendation
-- Clear medical disclaimer
+Analyze the skin image and return:
+1. Possible condition
+2. Risk level (Low / Medium / High)
+3. Simple recommendation
+4. Clear medical disclaimer
 
-Keep the response concise and patient-friendly.
+Keep the response concise and readable.
 `;
 
-    const result = await model.generateContent([prompt, imagePart]);
-    const response = await result.response;
+    // ✅ CORRECT Gemini Vision PAYLOAD (THIS FIXES 500 ERROR)
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                data: cleanBase64,
+                mimeType: "image/jpeg",
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const response = result.response.text();
 
     return {
-      summary: response.text(),
+      summary: response,
       disclaimer:
-        "This AI-based analysis is for informational purposes only and is not a medical diagnosis. Please consult a qualified doctor."
+        "This is an AI-generated analysis and not a medical diagnosis. Consult a dermatologist for confirmation.",
     };
-
   } catch (error) {
-    console.error("❌ Gemini Vision Error:", error.message);
+    console.error("❌ Gemini Vision Error:", error);
     throw new Error("Vision analysis failed");
   }
 }
