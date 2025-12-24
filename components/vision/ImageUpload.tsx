@@ -4,6 +4,10 @@ import { VisionAnalysisResult } from "../../types";
 import { auth } from "../../firebase";
 import { saveHistory } from "../../services/saveHistory";
 
+/* ✅ API BASE (Vercel / Render safe) */
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+
 export function ImageUpload() {
   const [preview, setPreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -13,12 +17,12 @@ export function ImageUpload() {
 
   const processFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file (JPG, PNG).");
+      alert("Please upload an image file (JPG or PNG).");
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert("Image size should be less than 5MB.");
+      alert("Image size must be less than 5MB.");
       return;
     }
 
@@ -33,12 +37,12 @@ export function ImageUpload() {
       setError(null);
 
       try {
-        const response = await fetch("http://localhost:5000/api/vision", {
+        const response = await fetch(`${API_BASE}/vision`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             image: base64DataUrl,
-            userEmail: auth.currentUser?.email || "anonymous",
+            userEmail: auth.currentUser?.email || "anonymous@hexacare.ai",
           }),
         });
 
@@ -50,23 +54,28 @@ export function ImageUpload() {
         const analysis: VisionAnalysisResult = await response.json();
         setResult(analysis);
 
-        /* ✅ SAVE HISTORY (STEP 5 COMPLETE) */
+        /* ✅ SAVE HISTORY (NON-BLOCKING) */
         if (auth.currentUser) {
-          await saveHistory(
-            auth.currentUser.uid,
-            "skin_disease_detection",
-            "Skin Disease Detection",
-            { imageUploaded: true },
-            {
-              summary: analysis.summary,
-              disclaimer: analysis.disclaimer,
-            }
-          );
+          try {
+            await saveHistory(
+              auth.currentUser.uid,
+              "skin_disease_detection",
+              "Skin Disease Detection",
+              { imageUploaded: true },
+              {
+                summary: analysis.summary,
+                disclaimer: analysis.disclaimer,
+              }
+            );
+          } catch (historyErr) {
+            console.warn("History save failed:", historyErr);
+          }
         }
-
       } catch (err: any) {
-        console.error("Vision Error:", err);
-        setError(err.message || "Failed to analyze image.");
+        console.error("Vision API Error:", err);
+        setError(
+          "Unable to analyze the image. Please ensure the server is running."
+        );
       } finally {
         setIsLoading(false);
       }
@@ -99,8 +108,12 @@ export function ImageUpload() {
     <div className="w-full max-w-xl mx-auto">
       {!preview ? (
         <div
-          className={`border-2 border-dashed rounded-2xl p-10 text-center transition
-            ${isDragging ? "border-teal-500 bg-teal-50" : "border-slate-300 bg-white"}
+          className={`relative border-2 border-dashed rounded-2xl p-10 text-center transition
+            ${
+              isDragging
+                ? "border-teal-500 bg-teal-50"
+                : "border-slate-300 bg-white"
+            }
           `}
           onDragOver={(e) => {
             e.preventDefault();
@@ -118,8 +131,12 @@ export function ImageUpload() {
           />
 
           <UploadCloud className="mx-auto h-10 w-10 text-teal-500 mb-4" />
-          <p className="font-semibold text-slate-800">Upload skin image</p>
-          <p className="text-sm text-slate-500">JPG / PNG • Max 5MB</p>
+          <p className="font-semibold text-slate-800">
+            Upload skin image
+          </p>
+          <p className="text-sm text-slate-500">
+            JPG / PNG • Max 5MB
+          </p>
         </div>
       ) : (
         <>
@@ -130,7 +147,11 @@ export function ImageUpload() {
               </div>
             )}
 
-            <img src={preview} className="w-full h-64 object-cover" />
+            <img
+              src={preview}
+              alt="Uploaded"
+              className="w-full h-64 object-cover"
+            />
 
             {!isLoading && (
               <button
@@ -155,7 +176,9 @@ export function ImageUpload() {
           )}
 
           {error && (
-            <div className="mt-4 text-sm text-red-600">{error}</div>
+            <div className="mt-4 text-sm text-red-600">
+              {error}
+            </div>
           )}
         </>
       )}
