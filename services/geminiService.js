@@ -1,23 +1,23 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
- * Analyze skin image using Gemini Vision (PRODUCTION SAFE)
+ * Analyze skin image using Gemini Vision (FINAL FIX)
  */
 export async function analyzeSkinImage(base64Image) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY not set in environment variables");
+    throw new Error("GEMINI_API_KEY not set");
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
 
+    // ✅ FIXED MODEL NAME (NO -latest)
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash-latest",
+      model: "gemini-1.5-flash",
     });
 
-    // ✅ REMOVE base64 metadata
     const cleanBase64 = base64Image.replace(
       /^data:image\/(png|jpeg|jpg|webp);base64,/,
       ""
@@ -26,16 +26,13 @@ export async function analyzeSkinImage(base64Image) {
     const prompt = `
 You are a medical AI assistant.
 
-Analyze the skin image and return:
+Analyze the skin image and provide:
 1. Possible condition
 2. Risk level (Low / Medium / High)
-3. Simple recommendation
-4. Clear medical disclaimer
-
-Keep the response concise and readable.
+3. Recommendation
+4. Medical disclaimer
 `;
 
-    // ✅ CORRECT Gemini Vision PAYLOAD (THIS FIXES 500 ERROR)
     const result = await model.generateContent({
       contents: [
         {
@@ -53,12 +50,10 @@ Keep the response concise and readable.
       ],
     });
 
-    const response = result.response.text();
-
     return {
-      summary: response,
+      summary: result.response.text(),
       disclaimer:
-        "This is an AI-generated analysis and not a medical diagnosis. Consult a dermatologist for confirmation.",
+        "This is an AI-generated analysis and not a medical diagnosis. Consult a dermatologist.",
     };
   } catch (error) {
     console.error("❌ Gemini Vision Error:", error);
