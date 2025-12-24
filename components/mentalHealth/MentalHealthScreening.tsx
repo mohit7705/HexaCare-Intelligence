@@ -9,7 +9,9 @@ import { generateReport } from "../../services/reportEngine";
 
 type ResultCategory = "Low" | "Moderate" | "High";
 
-const API_URL = "http://localhost:5000/api/mental-health";
+// ✅ API BASE (same pattern as SymptomChecker)
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 const MentalHealthScreening: React.FC = () => {
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -26,7 +28,7 @@ const MentalHealthScreening: React.FC = () => {
   const progress = (answeredCount / mentalHealthQuestions.length) * 100;
 
   const handleAnswer = (id: number, value: number) => {
-    setAnswers(prev => ({ ...prev, [id]: value }));
+    setAnswers((prev) => ({ ...prev, [id]: value }));
     if (error) setError(null);
   };
 
@@ -37,30 +39,35 @@ const MentalHealthScreening: React.FC = () => {
     setError(null);
 
     try {
-      const responses = mentalHealthQuestions.map(q => answers[q.id]);
+      const responses = mentalHealthQuestions.map((q) => answers[q.id]);
 
-      const response = await fetch(API_URL, {
+      const res = await fetch(`${API_BASE}/mental-health`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ responses }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          responses,
+          userEmail: auth.currentUser?.email || "anonymous@hexacare.ai",
+        }),
       });
 
-      if (!response.ok) {
-        throw new Error("Mental health API failed");
+      if (!res.ok) {
+        throw new Error(`Server Error: ${res.status}`);
       }
 
-      const data = await response.json();
+      const data = await res.json();
 
       const finalResult = {
         score: Number(data.score),
         category: data.level as ResultCategory,
       };
 
-      // ✅ RESULT IS PRIMARY (SHOW IT NO MATTER WHAT)
+      // ✅ SHOW RESULT IMMEDIATELY
       setResultData(finalResult);
 
       // ===============================
-      // 🔐 OPTIONAL: STELLAR + PDF
+      // 🔐 OPTIONAL: PDF + STELLAR (NON-BLOCKING)
       // ===============================
       try {
         await generateReport({
@@ -74,32 +81,37 @@ const MentalHealthScreening: React.FC = () => {
         });
       } catch (stellarError) {
         console.warn("Stellar write failed (non-blocking):", stellarError);
-        // ❌ DO NOT BREAK UI
       }
 
-      // ✅ SAVE HISTORY (NON-BLOCKING)
+      // ===============================
+      // 📚 SAVE HISTORY (NON-BLOCKING)
+      // ===============================
       if (auth.currentUser) {
-        await saveHistory(
-          auth.currentUser.uid,
-          "mental_health",
-          "Mental Health Screening",
-          { answers: responses },
-          {
-            risk: finalResult.category,
-            message: `Your mental health level is ${finalResult.category}`,
-            guidance:
-              finalResult.category === "High"
-                ? "Please consider professional mental health support."
-                : finalResult.category === "Moderate"
-                ? "Mindfulness and stress management may help."
-                : "Your mental wellbeing appears stable.",
-          }
-        );
+        try {
+          await saveHistory(
+            auth.currentUser.uid,
+            "mental_health",
+            "Mental Health Screening",
+            { answers: responses },
+            {
+              risk: finalResult.category,
+              message: `Your mental health level is ${finalResult.category}`,
+              guidance:
+                finalResult.category === "High"
+                  ? "Please consider professional mental health support."
+                  : finalResult.category === "Moderate"
+                  ? "Mindfulness and stress management may help."
+                  : "Your mental wellbeing appears stable.",
+            }
+          );
+        } catch (historyError) {
+          console.warn("History save failed:", historyError);
+        }
       }
 
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
-      console.error(err);
+      console.error("Mental Health API Error:", err);
       setError("Unable to submit assessment. Please try again.");
     } finally {
       setIsLoading(false);
@@ -116,7 +128,6 @@ const MentalHealthScreening: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4">
       <div className="max-w-3xl mx-auto">
-
         <h2 className="text-xl font-bold text-brand-600 mb-6 uppercase">
           HexaCare Intelligence AI
         </h2>
@@ -146,7 +157,7 @@ const MentalHealthScreening: React.FC = () => {
           <>
             <div className="w-full bg-slate-200 rounded-full h-2.5 mb-6">
               <div
-                className="bg-brand-600 h-2.5 rounded-full"
+                className="bg-brand-600 h-2.5 rounded-full transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -156,12 +167,12 @@ const MentalHealthScreening: React.FC = () => {
             </p>
 
             <div className="space-y-6">
-              {mentalHealthQuestions.map(q => (
+              {mentalHealthQuestions.map((q) => (
                 <QuestionItem
                   key={q.id}
                   question={q}
                   selectedValue={answers[q.id]}
-                  onChange={val => handleAnswer(q.id, val)}
+                  onChange={(val) => handleAnswer(q.id, val)}
                 />
               ))}
             </div>
@@ -171,10 +182,10 @@ const MentalHealthScreening: React.FC = () => {
                 type="button"
                 onClick={handleSubmit}
                 disabled={!isComplete || isLoading}
-                className={`px-8 py-4 rounded-xl font-bold text-lg ${
+                className={`px-8 py-4 rounded-xl font-bold text-lg transition-all ${
                   isComplete
-                    ? "bg-brand-600 text-white"
-                    : "bg-slate-300 text-slate-500"
+                    ? "bg-brand-600 text-white hover:bg-brand-700"
+                    : "bg-slate-300 text-slate-500 cursor-not-allowed"
                 }`}
               >
                 {isLoading ? "Analyzing..." : "See My Results"}
@@ -186,7 +197,6 @@ const MentalHealthScreening: React.FC = () => {
         <div className="mt-12">
           <Disclaimer />
         </div>
-
       </div>
     </div>
   );
