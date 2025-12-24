@@ -17,8 +17,8 @@ const DiabetesPredictor: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<null | {
     risk: string;
-    probability: number;
-    message?: string;
+    probability: number | null;
+    message: string;
   }>(null);
 
   const handleChange = (
@@ -56,15 +56,20 @@ const DiabetesPredictor: React.FC = () => {
 
       const data = await res.json();
 
+      // ✅ CORRECT BACKEND MAPPING
+      const scan = data.scan || {};
+
       const finalResult = {
-        risk: data.risk,
-        probability: data.probability,
-        message: data.message,
+        risk: scan.prediction || "Unknown",
+        probability: scan.confidence
+          ? parseInt(scan.confidence.replace("%", "")) / 100
+          : null,
+        message: scan.recommendation || "No recommendation available.",
       };
 
       setResult(finalResult);
 
-      // ✅ SAVE HISTORY (NON-BLOCKING)
+      // ✅ SAVE HISTORY (NON-BLOCKING & SAFE)
       if (auth.currentUser) {
         try {
           await saveHistory(
@@ -82,7 +87,7 @@ const DiabetesPredictor: React.FC = () => {
       console.error("Diabetes API Error:", err);
       setResult({
         risk: "System Offline",
-        probability: 0,
+        probability: null,
         message:
           "Unable to connect to the diabetes prediction service. Please try again later.",
       });
@@ -160,7 +165,7 @@ const DiabetesPredictor: React.FC = () => {
           <h3 className="text-2xl font-bold">{result.risk}</h3>
           <p className="mt-2">{result.message}</p>
 
-          {result.risk !== "System Offline" && (
+          {typeof result.probability === "number" && (
             <p className="mt-2 text-sm">
               Probability: {(result.probability * 100).toFixed(0)}%
             </p>
