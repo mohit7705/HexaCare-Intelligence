@@ -7,7 +7,7 @@ The platform integrates six critical health modules into a single, easy-to-use s
 
 🚀 Problem Statement
 
-Millions of people lack access to:
+Million of people lack access to:
 
 Early disease detection
 
@@ -117,7 +117,7 @@ Scikit-learn
 
 TensorFlow / PyTorch (where applicable)
 
-NLP with LLM integration
+NLP with the  LLM integration
 
 Computer Vision for image-based detection
 
